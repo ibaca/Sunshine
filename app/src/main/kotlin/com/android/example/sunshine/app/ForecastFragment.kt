@@ -1,11 +1,14 @@
 package com.android.example.sunshine.app
 
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.util.Log
 import android.view.*
+import android.widget.AdapterView.OnItemClickListener
 import android.widget.ArrayAdapter
+import com.android.example.sunshine.app.BuildConfig.OPENWEATHERMAP_APIKEY
 import kotlinx.android.synthetic.fragment_main.listview_forecast
 import org.json.JSONObject
 import java.lang.Math.round
@@ -14,6 +17,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class ForecastFragment : Fragment() {
+    val LOG_TAG = ForecastFragment::class.java.simpleName
+
     var task: (String) -> Unit = { };
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,7 +31,7 @@ class ForecastFragment : Fragment() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_refresh -> task("29018,ES").let { true }
+        R.id.action_refresh -> task(location()).let { true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -37,31 +42,27 @@ class ForecastFragment : Fragment() {
     override fun onActivityCreated(state: Bundle?) {
         super.onActivityCreated(state)
 
-        val apiKey = context.getPackageManager()
-                .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
-                .metaData.getString("org.openweathermap.API_KEY")
-
-        val weekForecast = ArrayList(Arrays.asList(
-                "Today - Sunny - 25/20",
-                "Tomorrow - Foggy - 21/19",
-                "Weds - Cloudy - 20/16",
-                "Thurs - Rainy - 21/16",
-                "Fri - Foggy - 22/19",
-                "Sat - Sunny - 25/16",
-                "Sun - Sunny - 26/17"))
-
         val listLayout = R.layout.list_item_forecast
         val listView = R.id.list_item_forecast_textview
-        val provider = ArrayAdapter(context, listLayout, listView, weekForecast)
+        val provider = ArrayAdapter(context, listLayout, listView, ArrayList<String>())
         listview_forecast.adapter = provider
+        listview_forecast.onItemClickListener = OnItemClickListener { adapterView, view, i, l ->
+            startActivity(Intent(context, DetailActivity::class.java)
+                    .putExtra(Intent.EXTRA_TEXT, provider.getItem(i)))
+        }
 
-        task = { query: String -> FetchWeatherTask(apiKey, provider).execute(query) }
+        task = { q: String -> FetchWeatherTask(provider).execute(q) }
     }
 
-    private class FetchWeatherTask(val apiKey: String, val provider: ArrayAdapter<String>) : AsyncTask<String, Void, List<String>>() {
+    fun location() = location(context)
+
+    fun units() = units(context)
+
+    inner class FetchWeatherTask(val provider: ArrayAdapter<String>) : AsyncTask<String, Void, List<String>>() {
+        val apiKey = OPENWEATHERMAP_APIKEY
+        val units = this@ForecastFragment.units()
         val dateFormat = SimpleDateFormat("EEE MMM dd")
         val base = "http://api.openweathermap.org/data/2.5/forecast/daily"
-        val units = "metric"
         val days = 7
 
         override fun onPreExecute() = provider.clear()
@@ -70,7 +71,7 @@ class ForecastFragment : Fragment() {
 
         override fun onPostExecute(r: List<String>) = r.forEach { provider.add(it) }
 
-        private fun uri(q: String) = "$base?q=$q&units=$units&cnt=$days&appid=$apiKey"
+        private fun uri(q: String) = "$base?q=$q&units=metric&cnt=$days&appid=$apiKey"
 
         private fun formatHighLows(high: Double, low: Double) = "${round(high)}/${round(low)}"
 
@@ -102,12 +103,21 @@ class ForecastFragment : Fragment() {
                 // Temperatures are in a child object called "temp".  Try not to name variables
                 // "temp" when working with temperature.  It confuses everybody.
                 val temperatureObject = dayForecast.getJSONObject("temp")
-                val high = temperatureObject.getDouble("max")
-                val low = temperatureObject.getDouble("min")
+                var high = temperatureObject.getDouble("max")
+                var low = temperatureObject.getDouble("min")
+
+
+                if (units.equals(getString(R.string.pref_units_imperial))) {
+                    high = (high * 1.8) + 32;
+                    low = (low * 1.8) + 32;
+                } else if (!units.equals(getString(R.string.pref_units_metric))) {
+                    Log.d(LOG_TAG, "Unsupported unit type: " + units);
+                }
 
                 highAndLow = formatHighLows(high, low)
                 "$day - $description - $highAndLow"
             }
         }
     }
+
 }
