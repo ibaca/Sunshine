@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.preference.PreferenceManager
 import android.util.Log
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import kotlin.reflect.KClass
 
@@ -29,6 +30,14 @@ public fun Activity.start(action: String, uri: String): Boolean {
         Log.e(this.javaClass.simpleName, "Error starting Intent{action=$action, uri=$uri", e)
     }
     return true
+}
+
+public fun <T> ArrayAdapter<T>.addIt(items: Iterable<T>) {
+    setNotifyOnChange(false)
+    clear()
+    items.forEach { add(it) }
+    setNotifyOnChange(true)
+    notifyDataSetChanged()
 }
 
 fun location(c: Context): String = PreferenceManager.getDefaultSharedPreferences(c).getString(

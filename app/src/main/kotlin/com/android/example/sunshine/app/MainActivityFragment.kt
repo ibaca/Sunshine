@@ -4,9 +4,9 @@ import android.content.Intent
 import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.support.v4.widget.SwipeRefreshLayout
 import android.util.Log
 import android.view.*
-import android.widget.AdapterView.OnItemClickListener
 import android.widget.ArrayAdapter
 import com.android.example.sunshine.app.BuildConfig.OPENWEATHERMAP_APIKEY
 import kotlinx.android.synthetic.fragment_main.listview_forecast
@@ -16,10 +16,10 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
 
-class ForecastFragment : Fragment() {
-    val LOG_TAG = ForecastFragment::class.java.simpleName
+class MainActivityFragment : Fragment() {
+    val LOG_TAG = MainActivityFragment::class.java.simpleName
 
-    var task: (String) -> Unit = { };
+    var task: () -> Unit = { };
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,11 +27,11 @@ class ForecastFragment : Fragment() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
-        inflater.inflate(R.menu.forecastfragment, menu)
+        inflater.inflate(R.menu.menu_main_fragment, menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_refresh -> task(location()).let { true }
+        R.id.action_refresh -> task().let { true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -46,13 +46,19 @@ class ForecastFragment : Fragment() {
         val listView = R.id.list_item_forecast_textview
         val provider = ArrayAdapter(context, listLayout, listView, ArrayList<String>())
         listview_forecast.adapter = provider
-        listview_forecast.onItemClickListener = OnItemClickListener { adapterView, view, i, l ->
+        listview_forecast.setOnItemClickListener { adapterView, view, i, l ->
             startActivity(Intent(context, DetailActivity::class.java)
                     .putExtra(Intent.EXTRA_TEXT, provider.getItem(i)))
         }
 
-        task = { q: String -> FetchWeatherTask(provider).execute(q) }
+        (view as SwipeRefreshLayout).setOnRefreshListener { task() }
+
+        task = { FetchWeatherTask(provider).execute(location()) }
+
+        task() // initial load
     }
+
+    fun done() { (view as SwipeRefreshLayout).isRefreshing = false }
 
     fun location() = location(context)
 
@@ -60,16 +66,14 @@ class ForecastFragment : Fragment() {
 
     inner class FetchWeatherTask(val provider: ArrayAdapter<String>) : AsyncTask<String, Void, List<String>>() {
         val apiKey = OPENWEATHERMAP_APIKEY
-        val units = this@ForecastFragment.units()
+        val units = this@MainActivityFragment.units()
         val dateFormat = SimpleDateFormat("EEE MMM dd")
         val base = "http://api.openweathermap.org/data/2.5/forecast/daily"
         val days = 7
 
-        override fun onPreExecute() = provider.clear()
-
         override fun doInBackground(vararg params: String) = parse(URL(uri(params[0])).readText())
 
-        override fun onPostExecute(r: List<String>) = r.forEach { provider.add(it) }
+        override fun onPostExecute(result: List<String>) { provider.addIt(result); done() }
 
         private fun uri(q: String) = "$base?q=$q&units=metric&cnt=$days&appid=$apiKey"
 
@@ -119,5 +123,4 @@ class ForecastFragment : Fragment() {
             }
         }
     }
-
 }
