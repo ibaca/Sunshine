@@ -6,9 +6,11 @@ import android.support.v4.app.Fragment
 import android.support.v4.view.MenuItemCompat
 import android.support.v7.widget.ShareActionProvider
 import android.view.*
-import kotlinx.android.synthetic.fragment_detail.detail_text
+import android.widget.TextView
+import butterknife.bindView
 
 class DetailActivityFragment : Fragment() {
+    val detail: TextView by bindView(R.id.detail_text)
 
     init {
         setHasOptionsMenu(true)
@@ -28,7 +30,7 @@ class DetailActivityFragment : Fragment() {
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        detail_text.text = data()
+        detail.text = data()
     }
 
     private fun data() = activity.intent?.extras?.getString(Intent.EXTRA_TEXT) ?: "No data"

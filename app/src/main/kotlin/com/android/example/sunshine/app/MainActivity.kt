@@ -3,11 +3,13 @@ package com.android.example.sunshine.app
 import android.content.Intent
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.support.v7.widget.Toolbar
 import android.view.Menu
 import android.view.MenuItem
-import kotlinx.android.synthetic.activity_main.toolbar
+import butterknife.bindView
 
 class MainActivity : AppCompatActivity() {
+    val toolbar: Toolbar by bindView(R.id.toolbar)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

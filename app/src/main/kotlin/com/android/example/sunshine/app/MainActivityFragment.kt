@@ -8,8 +8,9 @@ import android.support.v4.widget.SwipeRefreshLayout
 import android.util.Log
 import android.view.*
 import android.widget.ArrayAdapter
+import android.widget.ListView
+import butterknife.bindView
 import com.android.example.sunshine.app.BuildConfig.OPENWEATHERMAP_APIKEY
-import kotlinx.android.synthetic.fragment_main.listview_forecast
 import org.json.JSONObject
 import java.lang.Math.round
 import java.net.URL
@@ -17,8 +18,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivityFragment : Fragment() {
-    val LOG_TAG = MainActivityFragment::class.java.simpleName
-
+    val list: ListView by bindView(R.id.listview_forecast)
+    val swipe: SwipeRefreshLayout get() = view as SwipeRefreshLayout
     var task: () -> Unit = { };
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,20 +46,20 @@ class MainActivityFragment : Fragment() {
         val listLayout = R.layout.list_item_forecast
         val listView = R.id.list_item_forecast_textview
         val provider = ArrayAdapter(context, listLayout, listView, ArrayList<String>())
-        listview_forecast.adapter = provider
-        listview_forecast.setOnItemClickListener { adapterView, view, i, l ->
+        list.adapter = provider
+        list.setOnItemClickListener { adapterView, view, i, l ->
             startActivity(Intent(context, DetailActivity::class.java)
                     .putExtra(Intent.EXTRA_TEXT, provider.getItem(i)))
         }
 
-        (view as SwipeRefreshLayout).setOnRefreshListener { task() }
+        swipe.setOnRefreshListener { task() }
 
         task = { FetchWeatherTask(provider).execute(location()) }
 
         task() // initial load
     }
 
-    fun done() { (view as SwipeRefreshLayout).isRefreshing = false }
+    fun done() = swipe.apply { isRefreshing = false }
 
     fun location() = location(context)
 
@@ -73,7 +74,9 @@ class MainActivityFragment : Fragment() {
 
         override fun doInBackground(vararg params: String) = parse(URL(uri(params[0])).readText())
 
-        override fun onPostExecute(result: List<String>) { provider.addIt(result); done() }
+        override fun onPostExecute(result: List<String>) {
+            provider.addIt(result); done()
+        }
 
         private fun uri(q: String) = "$base?q=$q&units=metric&cnt=$days&appid=$apiKey"
 

@@ -12,6 +12,8 @@ import android.widget.ArrayAdapter
 import android.widget.Toast
 import kotlin.reflect.KClass
 
+val LOG_TAG = "SUNSHINE"
+
 public fun Activity.start(type: KClass<*>): Boolean {
     startActivity(Intent(this, type.java))
     return true
