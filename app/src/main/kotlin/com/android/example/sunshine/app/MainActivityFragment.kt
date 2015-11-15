@@ -69,7 +69,7 @@ class MainActivityFragment : Fragment() {
         val units = this@MainActivityFragment.units()
         val dateFormat = SimpleDateFormat("EEE MMM dd")
         val base = "http://api.openweathermap.org/data/2.5/forecast/daily"
-        val days = 7
+        val days = 15
 
         override fun doInBackground(vararg params: String) = parse(URL(uri(params[0])).readText())
 
@@ -128,7 +128,12 @@ class MainActivityFragment : Fragment() {
             val summary: TextView by bindView(R.id.item_summary)
 
             fun update(forecast: Forecast) {
-                forecast.icon.apply { picasso.load(iconUrl(this)).into(image) }
+                forecast.icon.apply {
+                    picasso.load(iconUrl(this)).into(image, {
+                        itemView.setBackgroundColor(it.rgb)
+                        summary.setTextColor(it.bodyTextColor)
+                    })
+                }
                 forecast.summary.apply { summary.text = this }
                 itemView.setOnClickListener {
                     startActivity(Intent(context, DetailActivity::class.java)
@@ -139,13 +144,12 @@ class MainActivityFragment : Fragment() {
             fun iconUrl(icon: String) = "http://openweathermap.org/img/w/$icon.png"
         }
 
-
         override fun onBindViewHolder(holder: ForecastAdapter.ViewHolder, position: Int) {
             holder.update (data[position])
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder? {
-            return ViewHolder(inflater.inflate(R.layout.list_item_forecast, null))
+            return ViewHolder(inflater.inflate(R.layout.list_item_forecast, parent, false))
         }
 
         override fun getItemCount(): Int = data.size

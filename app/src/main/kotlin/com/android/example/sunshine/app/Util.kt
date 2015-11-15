@@ -5,21 +5,26 @@ package com.android.example.sunshine.app
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.preference.PreferenceManager
+import android.support.v7.graphics.Palette
 import android.util.Log
 import android.widget.ArrayAdapter
+import android.widget.ImageView
 import android.widget.Toast
+import com.squareup.picasso.Callback
+import com.squareup.picasso.RequestCreator
 import kotlin.reflect.KClass
 
-val LOG_TAG = "SUNSHINE"
+const val LOG_TAG = "SUNSHINE"
 
-public fun Activity.start(type: KClass<*>): Boolean {
+fun Activity.start(type: KClass<*>): Boolean {
     startActivity(Intent(this, type.java))
     return true
 }
 
-public fun Activity.start(action: String, uri: String): Boolean {
+fun Activity.start(action: String, uri: String): Boolean {
     try {
         val intent = Intent(action, Uri.parse(uri))
         if (intent.resolveActivity(packageManager) == null) {
@@ -34,12 +39,25 @@ public fun Activity.start(action: String, uri: String): Boolean {
     return true
 }
 
-public fun <T> ArrayAdapter<T>.addIt(items: Iterable<T>) {
+fun <T> ArrayAdapter<T>.addIt(items: Iterable<T>) {
     setNotifyOnChange(false)
     clear()
     items.forEach { add(it) }
     setNotifyOnChange(true)
     notifyDataSetChanged()
+}
+
+fun RequestCreator.into(target: ImageView, callback: (Palette.Swatch) -> Unit) {
+    into(target, object : Callback {
+        override fun onSuccess() {
+            Palette.from((target.drawable as BitmapDrawable).bitmap)
+                    .generate({ callback.invoke(it.swatches[0]) })
+        }
+
+        override fun onError() {
+            Log.e(LOG_TAG, "forecast icon load error")
+        }
+    })
 }
 
 fun location(c: Context): String = PreferenceManager.getDefaultSharedPreferences(c).getString(
