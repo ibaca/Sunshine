@@ -10,11 +10,11 @@ import android.net.Uri
 import android.preference.PreferenceManager
 import android.support.v7.graphics.Palette
 import android.util.Log
-import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.Toast
 import com.squareup.picasso.Callback
 import com.squareup.picasso.RequestCreator
+import java.util.*
 import kotlin.reflect.KClass
 
 const val LOG_TAG = "SUNSHINE"
@@ -39,14 +39,6 @@ fun Activity.start(action: String, uri: String): Boolean {
     return true
 }
 
-fun <T> ArrayAdapter<T>.addIt(items: Iterable<T>) {
-    setNotifyOnChange(false)
-    clear()
-    items.forEach { add(it) }
-    setNotifyOnChange(true)
-    notifyDataSetChanged()
-}
-
 fun RequestCreator.into(target: ImageView, callback: (Palette.Swatch) -> Unit) {
     into(target, object : Callback {
         override fun onSuccess() {
@@ -65,3 +57,12 @@ fun location(c: Context): String = PreferenceManager.getDefaultSharedPreferences
 
 fun units(c: Context): String = PreferenceManager.getDefaultSharedPreferences(c).getString(
         c.getString(R.string.pref_units_key), c.getString(R.string.pref_units_metric))
+
+/** To make it easy to query for the exact date, normalize all database dates. */
+fun normalizeDate(startDate: Long) = GregorianCalendar(TimeZone.getTimeZone("UTC")).apply {
+    timeInMillis = startDate
+    set(Calendar.HOUR, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
