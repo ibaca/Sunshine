@@ -41,6 +41,7 @@ fun createWeatherValues(locationRowId: Long) = ContentValues().apply {
     put(WeatherEntry.COLUMN_SHORT_DESC, "Asteroids")
     put(WeatherEntry.COLUMN_WIND_SPEED, 5.5)
     put(WeatherEntry.COLUMN_WEATHER_ID, 321)
+    put(WeatherEntry.COLUMN_ICON, "10d")
 }
 
 fun createNorthPoleLocationValues() = ContentValues().apply {

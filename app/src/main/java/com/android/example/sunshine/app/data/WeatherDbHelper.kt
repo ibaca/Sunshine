@@ -46,6 +46,7 @@ class WeatherDbHelper(context: Context) : SQLiteOpenHelper(context, WeatherDbHel
                 "${WeatherEntry.COLUMN_PRESSURE} REAL NOT NULL, " +
                 "${WeatherEntry.COLUMN_WIND_SPEED} REAL NOT NULL, " +
                 "${WeatherEntry.COLUMN_DEGREES} REAL NOT NULL, " +
+                "${WeatherEntry.COLUMN_ICON} TEXT NOT NULL, " +
                 "FOREIGN KEY (${WeatherEntry.COLUMN_LOC_KEY}) REFERENCES ${LocationEntry.TABLE_NAME} (${LocationEntry._ID}), " +
                 "UNIQUE (${WeatherEntry.COLUMN_DATE}, ${WeatherEntry.COLUMN_LOC_KEY}) ON CONFLICT REPLACE);")
     }
