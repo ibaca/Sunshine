@@ -1,9 +1,11 @@
 // https://github.com/JakeWharton/kotterknife/blob/master/src/main/kotlin/butterknife/ButterKnife.kt
 package butterknife
 
+import android.annotation.TargetApi
 import android.app.Activity
 import android.app.Dialog
 import android.app.Fragment
+import android.os.Build.VERSION_CODES.HONEYCOMB
 import android.support.v7.widget.RecyclerView.ViewHolder
 import android.view.View
 import kotlin.properties.ReadOnlyProperty
@@ -69,7 +71,7 @@ private val Activity.viewFinder: Activity.(Int) -> View?
 private val Dialog.viewFinder: Dialog.(Int) -> View?
     get() = { findViewById(it) }
 private val Fragment.viewFinder: Fragment.(Int) -> View?
-    get() = { view.findViewById(it) }
+    @TargetApi(HONEYCOMB) get() = { view.findViewById(it) }
 private val SupportFragment.viewFinder: SupportFragment.(Int) -> View?
     get() = { view.findViewById(it) }
 private val ViewHolder.viewFinder: ViewHolder.(Int) -> View?
