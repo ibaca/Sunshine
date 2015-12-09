@@ -28,7 +28,7 @@ android {
         }
     }
     buildTypes.each {
-        it.buildConfigField 'String', 'OPENWEATHERMAP_APIKEY', openweathermap_apikey
+        it.buildConfigField 'String', 'OPENWEATHERMAP_APIKEY', property('openweathermap.apikey')
     }
 }
 dependencies {
