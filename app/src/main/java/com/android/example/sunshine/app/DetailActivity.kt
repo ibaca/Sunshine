@@ -24,5 +24,4 @@ class DetailActivity : AppCompatActivity() {
         R.id.action_settings -> start(SettingsActivity::class)
         else -> super.onOptionsItemSelected(item)
     }
-
 }

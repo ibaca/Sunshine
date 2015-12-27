@@ -1,4 +1,4 @@
-package com.android.example.sunshine.app.data
+package com.android.example.sunshine.app
 
 import android.content.ContentValues
 import android.content.Context
@@ -9,7 +9,11 @@ import android.os.Handler
 import android.os.HandlerThread
 import com.android.example.sunshine.app.data.WeatherContract.LocationEntry
 import com.android.example.sunshine.app.data.WeatherContract.WeatherEntry
-import junit.framework.Assert.*
+import com.android.example.sunshine.app.data.WeatherDbHelper
+import junit.framework.Assert.assertEquals
+import junit.framework.Assert.assertFalse
+import junit.framework.Assert.assertTrue
+import junit.framework.Assert.fail
 import java.util.concurrent.Callable
 
 const val TEST_LOCATION = "99705"

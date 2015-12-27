@@ -34,13 +34,10 @@ public class WeatherContract {
         public static final String COLUMN_COORD_LAT = "coord_lat";
         /** Longitude as returned by openweathermap. */
         public static final String COLUMN_COORD_LON = "coord_long";
-
     }
 
     public static final class WeatherEntry implements BaseColumns {
-
         public static final Uri CONTENT_URI = BASE_CONTENT_URI.buildUpon().appendPath(PATH_WEATHER).build();
-
         public static final String CONTENT_TYPE = ContentResolver.CURSOR_DIR_BASE_TYPE + "/" + CONTENT_AUTHORITY + "/" + PATH_WEATHER;
         public static final String CONTENT_ITEM_TYPE = ContentResolver.CURSOR_ITEM_BASE_TYPE + "/" + CONTENT_AUTHORITY + "/" + PATH_WEATHER;
 
@@ -48,7 +45,6 @@ public class WeatherContract {
             return ContentUris.withAppendedId(CONTENT_URI, id);
         }
 
-        /* Student: Fill in this buildWeatherLocation function */
         public static Uri buildWeatherLocation(String locationSetting) {
             return CONTENT_URI.buildUpon()
                     .appendPath(locationSetting)
@@ -63,7 +59,7 @@ public class WeatherContract {
                     .build();
         }
 
-        public static Uri buildWeatherLocationWithDate(String locationSetting, long date) {
+        public static Uri buildWeatherLocationAndDate(String locationSetting, long date) {
             return CONTENT_URI.buildUpon()
                     .appendPath(locationSetting)
                     .appendPath(Long.toString(normalizeDate(date).getTimeInMillis()))

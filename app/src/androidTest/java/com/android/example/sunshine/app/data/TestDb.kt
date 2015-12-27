@@ -1,8 +1,12 @@
 package com.android.example.sunshine.app.data
 
 import android.test.AndroidTestCase
+import com.android.example.sunshine.app.createNorthPoleLocationValues
+import com.android.example.sunshine.app.createWeatherValues
 import com.android.example.sunshine.app.data.WeatherContract.LocationEntry
 import com.android.example.sunshine.app.data.WeatherContract.WeatherEntry
+import com.android.example.sunshine.app.insertNorthPoleLocationValues
+import com.android.example.sunshine.app.validateCursor
 
 class TestDb : AndroidTestCase() {
 
