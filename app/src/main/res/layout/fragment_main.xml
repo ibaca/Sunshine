@@ -1,6 +1,7 @@
-<android.support.v4.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<android.support.v4.widget.SwipeRefreshLayout
     android:id="@+id/swiperefresh_forecast"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivityFragment"
@@ -10,6 +11,6 @@
         android:id="@+id/listview_forecast"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        tools:listitem="@layout/list_item_forecast" />
+        tools:listitem="@layout/list_item_forecast"/>
 
 </android.support.v4.widget.SwipeRefreshLayout>

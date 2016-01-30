@@ -14,6 +14,9 @@ class DetailActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_detail)
         setSupportActionBar(toolbar)
+        if (savedInstanceState == null) supportFragmentManager.tx {
+            add(R.id.weather_detail_container, DetailActivityFragment.of(intent.data))
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

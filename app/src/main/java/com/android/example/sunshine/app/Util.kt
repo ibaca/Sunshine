@@ -4,18 +4,17 @@
 package com.android.example.sunshine.app
 
 import android.app.Activity
-import android.content.ContentResolver
-import android.content.ContentUris
-import android.content.ContentValues
-import android.content.Context
-import android.content.Intent
+import android.content.*
 import android.database.Cursor
 import android.database.DatabaseUtils
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.preference.PreferenceManager
+import android.support.v4.app.FragmentManager
+import android.support.v4.app.FragmentTransaction
 import android.support.v7.graphics.Palette
+import android.text.format.Time
 import android.util.Log
 import android.widget.ImageView
 import android.widget.Toast
@@ -49,6 +48,10 @@ fun Activity.start(action: String, uri: String): Boolean {
         Log.e(this.javaClass.simpleName, "Error starting Intent{action=$action, uri=$uri", e)
     }
     return true
+}
+
+fun FragmentManager.tx(f: FragmentTransaction.() -> Unit): Unit {
+    beginTransaction().apply(f).commit()
 }
 
 fun ContentValues.populate(cursor: Cursor): ContentValues = apply {
@@ -115,6 +118,8 @@ fun location(c: Context): String = PreferenceManager.getDefaultSharedPreferences
 fun units(c: Context): String = PreferenceManager.getDefaultSharedPreferences(c).getString(
         c.getString(R.string.pref_units_key), c.getString(R.string.pref_units_metric))
 
+fun metric(c: Context): Boolean = units(c) == "metric"
+
 /** To make it easy to query for the exact date, normalize all database dates. */
 fun normalizeDate(dateInMillis: Long = System.currentTimeMillis()) = GregorianCalendar(UTC).apply {
     timeInMillis = dateInMillis
@@ -150,6 +155,13 @@ fun addLocation(context: Context, locationSetting: String, cityName: String, lat
     }
 }
 
+fun formatTemperature(context: Context, temperature: Double, units: String): String {
+    return context.getString(R.string.format_temperature, when (units) {
+        "imperial" -> 9 * temperature / 5 + 32
+        else -> temperature
+    })
+}
+
 fun formatHighLows(high: Double, low: Double) = "${Math.round(high)}/${Math.round(low)}"
 
 fun ContentValues.asForecast(units: String, dateFormat: Format = SimpleDateFormat("EEE MMM dd")): MainActivityFragment.Forecast {
@@ -173,5 +185,71 @@ fun ContentValues.asForecast(units: String, dateFormat: Format = SimpleDateForma
             this.getAsString(LocationEntry.COLUMN_LOCATION_SETTING),
             this.getAsLong(WeatherContract.WeatherEntry.COLUMN_DATE),
             "$day - $description - ${formatHighLows(high, low)}",
-            this.getAsString(WeatherContract.WeatherEntry.COLUMN_ICON))
+            this.getAsString(WeatherContract.WeatherEntry.COLUMN_ICON),
+            this.getAsDouble(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP),
+            this.getAsDouble(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP)
+    )
 }
+
+/**
+ * Helper method to convert the database representation of the date into something to display
+ * to users.  As classy and polished a user experience as "20140102" is, we can do better.
+ */
+fun getFriendlyDayString(context: Context, dateInMillis: Long): String {
+    // The day string for forecast uses the following logic:
+    // For today: "Today, June 8"
+    // For tomorrow:  "Tomorrow"
+    // For the next 5 days: "Wednesday" (just the day name)
+    // For all days after that: "Mon Jun 8"
+
+    val now = Time().apply { setToNow() }
+    val currentTime = System.currentTimeMillis()
+    val julianDay = Time.getJulianDay(dateInMillis, now.gmtoff)
+    val currentJulianDay = Time.getJulianDay(currentTime, now.gmtoff)
+
+    return when {
+        julianDay == currentJulianDay -> context.getString(
+                R.string.format_full_friendly_date,
+                context.getString(R.string.today),
+                getFormattedMonthDay(context, dateInMillis))
+        julianDay < currentJulianDay + 7 -> getDayName(context, dateInMillis)
+        else -> SimpleDateFormat("EEE MMM dd").format(dateInMillis)
+    }
+}
+
+/** Given a day, returns just the name to use for that day. E.g "today", "tomorrow", "wednesday". */
+fun getDayName(context: Context, dateInMillis: Long): String {
+    val now = Time().apply { setToNow() }
+    val julianDay = Time.getJulianDay(dateInMillis, now.gmtoff)
+    val currentJulianDay = Time.getJulianDay(System.currentTimeMillis(), now.gmtoff)
+
+    return when (julianDay) {
+        currentJulianDay -> context.getString(R.string.today)
+        currentJulianDay + 1 -> context.getString(R.string.tomorrow)
+        else -> SimpleDateFormat("EEEE").format(dateInMillis)
+    }
+}
+
+/** Converts db date format to the format "Month day", e.g "June 24". */
+fun getFormattedMonthDay(context: Context, dateInMillis: Long): String {
+    return SimpleDateFormat("MMMM dd").format(dateInMillis)
+}
+
+fun getFormattedWind(c: Context, windSpeed: Float, degrees: Float): String = c
+        .getString(if (metric(c)) R.string.format_wind_kmh else R.string.format_wind_mph)
+        .format(if (metric(c)) windSpeed else .621371192237334f * windSpeed, direction(degrees))
+
+private fun direction(degrees: Float) = when {
+    degrees >= 337.5 || degrees < 22.5 -> "N"
+    degrees >= 22.5 && degrees < 67.5 -> "NE"
+    degrees >= 67.5 && degrees < 112.5 -> "E"
+    degrees >= 112.5 && degrees < 157.5 -> "SE"
+    degrees >= 157.5 && degrees < 202.5 -> "S"
+    degrees >= 202.5 && degrees < 247.5 -> "SW"
+    degrees >= 247.5 && degrees < 292.5 -> "W"
+    degrees >= 292.5 || degrees < 22.5 -> "NW"
+    else -> "Unknown"
+}
+
+fun weatherIconUrl(icon: String) = "http://openweathermap.org/img/w/$icon.png"
+val MainActivityFragment.Forecast.iconUrl: String get() = weatherIconUrl(this.icon)

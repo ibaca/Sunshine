@@ -1,5 +1,9 @@
 package com.android.example.sunshine.app
 
+import android.annotation.TargetApi
+import android.content.Intent
+import android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+import android.os.Build
 import android.os.Bundle
 import android.preference.ListPreference
 import android.preference.Preference
@@ -33,6 +37,11 @@ class SettingsActivity : PreferenceActivity() {
             preference.summary = stringValue
         }
         return true
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
+    override fun getParentActivityIntent(): Intent? {
+        return super.getParentActivityIntent().addFlags(FLAG_ACTIVITY_CLEAR_TOP)
     }
 }
 

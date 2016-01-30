@@ -1,8 +1,8 @@
 package com.android.example.sunshine.app
 
 import android.content.ContentValues
-import android.content.Intent
 import android.database.Cursor
+import android.net.Uri
 import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v4.app.Fragment
@@ -13,12 +13,7 @@ import android.support.v4.widget.SwipeRefreshLayout
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.util.Log
-import android.view.LayoutInflater
-import android.view.Menu
-import android.view.MenuInflater
-import android.view.MenuItem
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.ImageView
 import android.widget.TextView
 import butterknife.bindView
@@ -34,6 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivityFragment : Fragment() {
+    var useTodayLayout = false
     val list: RecyclerView by bindView(R.id.listview_forecast)
     val swipe: SwipeRefreshLayout get() = view as SwipeRefreshLayout
     lateinit var loaderCallback: LoaderManager.LoaderCallbacks<Cursor>
@@ -67,7 +63,7 @@ class MainActivityFragment : Fragment() {
         }
 
         list.apply {
-            setHasFixedSize(true)
+            setHasFixedSize(false)
             layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
             adapter = forecastAdapter
         }
@@ -102,7 +98,9 @@ class MainActivityFragment : Fragment() {
             val location: String,
             val date: Long,
             val summary: String,
-            val icon: String
+            val icon: String,
+            val min: Double,
+            val max: Double
     )
 
     inner class FetchWeatherTask(val onComplete: () -> Unit) : AsyncTask<String, Unit, Unit>() {
@@ -111,7 +109,11 @@ class MainActivityFragment : Fragment() {
         val days = 14
 
         override fun doInBackground(vararg params: String): Unit = params[0].let { location ->
-            URL(uri(location)).readText().let { process(location, it) }
+            try {
+                URL(uri(location)).readText().let { process(location, it) }
+            } catch (e: Throwable) {
+                Log.e(LOG_TAG, "fetch and process location '$location' failure!, cause: $e", e)
+            }
         }
 
         override fun onPostExecute(result: Unit) = onComplete.invoke()
@@ -185,34 +187,60 @@ class MainActivityFragment : Fragment() {
         val dateFormat = SimpleDateFormat("EEE MMM dd")
 
         inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val image: ImageView by bindView(R.id.item_image)
-            val summary: TextView by bindView(R.id.item_summary)
+            val image: ImageView by bindView(R.id.list_item_icon)
+            val date: TextView by bindView(R.id.list_item_date_textview)
+            val main: TextView by bindView(R.id.list_item_forecast_textview)
+            val high: TextView by bindView(R.id.list_item_high_textview)
+            val low: TextView by bindView(R.id.list_item_low_textview)
+            val all: Array<TextView> by lazy { arrayOf(date, main, high, low) }
 
             fun update(forecast: Forecast) {
-                forecast.icon.apply {
-                    picasso.load(iconUrl(this)).into(image, {
-                        itemView.setBackgroundColor(it.rgb)
-                        summary.setTextColor(it.bodyTextColor)
+                forecast.iconUrl.apply {
+                    picasso.load(this).into(image, {
+                        // itemView.setBackgroundColor(it.rgb)
+                        // all.forEach { text -> text.setTextColor(it.bodyTextColor) }
                     })
                 }
-                forecast.summary.apply { summary.text = this }
+                forecast.date.apply { date.text = getFriendlyDayString(context, this) }
+                forecast.summary.apply { main.text = this; image.contentDescription = this }
+                forecast.min.apply { low.text = formatTemperature(context, this, units) }
+                forecast.max.apply { high.text = formatTemperature(context, this, units) }
+
                 itemView.setOnClickListener {
                     val uri = buildWeatherLocationAndDate(forecast.location, forecast.date)
-                    startActivity(Intent(context, DetailActivity::class.java).setData(uri))
+                    (activity as Callback).onItemSelected(uri)
+
+                    // Redraw the old selection and the new
+                    updateFocusedItem(layoutPosition)
                 }
             }
-
-            fun iconUrl(icon: String) = "http://openweathermap.org/img/w/$icon.png"
         }
 
         override fun onBindViewHolder(holder: ViewHolder, cursor: Cursor) {
             cursor.asContentValues().asForecast().apply { holder.update(this) }
         }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder? {
-            return ViewHolder(inflater.inflate(R.layout.list_item_forecast, parent, false))
+        val VT_TODAY = 0;
+        val VT_FUTURE = 1;
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            return ViewHolder(inflater.inflate(layout(viewType), parent, false))
+        }
+
+        override fun getItemViewType(position: Int) = when {
+            useTodayLayout && position == 0 -> VT_TODAY
+            else -> VT_FUTURE
+        }
+
+        private fun layout(viewType: Int) = when (viewType) {
+            VT_TODAY -> R.layout.list_item_forecast_today
+            else -> R.layout.list_item_forecast
         }
 
         private fun ContentValues.asForecast(): Forecast = asForecast(units, dateFormat)
+    }
+
+    interface Callback {
+        fun onItemSelected(dateUri: Uri): Unit
     }
 }

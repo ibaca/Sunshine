@@ -2,6 +2,8 @@ package com.android.example.sunshine.app
 
 import android.database.Cursor
 import android.support.v7.widget.RecyclerView
+import android.view.KeyEvent
+import android.view.View
 
 abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerView.Adapter<VH>() {
     protected var cursor: Cursor? = null
@@ -14,6 +16,10 @@ abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerV
     final override fun onBindViewHolder(holder: VH, position: Int) = cursor.let { c ->
         check(c != null) { "this should only be called when the cursor is valid" }
         check(c!!.moveToPosition(position)) { "couldn't move cursor to position $position" }
+
+        // Set selected state; use a state list drawable to style the view
+        holder.itemView.isSelected = focusedItem == position;
+
         onBindViewHolder(holder, c)
     }
 
@@ -48,5 +54,46 @@ abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerV
             notifyItemRangeRemoved(0, itemCount)
         }
         return oldCursor
+    }
+
+    var focusedItem: Int = 0
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView?) {
+        super.onAttachedToRecyclerView(recyclerView)
+
+        fun tryMoveSelection(lm: RecyclerView.LayoutManager, direction: Int): Boolean {
+            var tryFocusItem = focusedItem + direction
+
+            // If still within valid bounds, move the selection, notify to redraw, and scroll
+            if (tryFocusItem >= 0 && tryFocusItem < itemCount) {
+                updateFocusedItem(tryFocusItem)
+                lm.scrollToPosition(focusedItem)
+                return true;
+            } else {
+                return false;
+            }
+        }
+        // Handle key up and key down and attempt to move selection
+        recyclerView?.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
+
+            // Return false if scrolled to the bounds and allow focus to move off the list
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    return@OnKeyListener tryMoveSelection(recyclerView.layoutManager, 1);
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    return@OnKeyListener tryMoveSelection(recyclerView.layoutManager, -1);
+                }
+            }
+
+            return@OnKeyListener false;
+        });
+    }
+
+    fun updateFocusedItem(focusItem: Int) {
+        // notifyItemChanged throws NPE!
+        // notifyItemChanged(focusedItem)
+        focusedItem = focusItem
+        notifyDataSetChanged()
+        // notifyItemChanged(focusedItem)
     }
 }
