@@ -13,6 +13,7 @@ import android.view.View
 import android.widget.Toast
 import butterknife.bindOptionalView
 import butterknife.bindView
+import com.android.example.sunshine.app.sync.SunshineSyncAdapter
 
 class MainActivity : AppCompatActivity(), MainActivityFragment.Callback {
     private val DETAIL_TAG = "detail"
@@ -32,6 +33,7 @@ class MainActivity : AppCompatActivity(), MainActivityFragment.Callback {
         supportFragmentManager.findFragmentById(R.id.fragment_forecast)
                 .let { it as MainActivityFragment }
                 .useTodayLayout = !twoPane
+        SunshineSyncAdapter.initializeSyncAdapter(this)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -40,7 +42,6 @@ class MainActivity : AppCompatActivity(), MainActivityFragment.Callback {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
         R.id.action_settings -> start(SettingsActivity::class)
-        R.id.action_map -> start(Intent.ACTION_VIEW, "geo:0,0?q=${location(this)}")
         else -> super.onOptionsItemSelected(item)
     }
 

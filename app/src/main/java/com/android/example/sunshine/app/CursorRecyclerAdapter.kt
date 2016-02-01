@@ -6,8 +6,8 @@ import android.view.KeyEvent
 import android.view.View
 
 abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerView.Adapter<VH>() {
-    protected var cursor: Cursor? = null
-    protected var mRowIdColumn: Int = 0
+    var cursor: Cursor? = null
+    var rowIdColumn: Int = 0
 
     init {
         setHasStableIds(true)
@@ -29,7 +29,7 @@ abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerV
 
     final override fun getItemId(position: Int): Long = cursor.let { c ->
         if (c != null && c.moveToPosition(position)) {
-            return c.getLong(mRowIdColumn)
+            return c.getLong(rowIdColumn)
         } else {
             return RecyclerView.NO_ID
         }
@@ -46,7 +46,7 @@ abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerV
         val oldCursor = cursor
         cursor = newCursor
         if (newCursor != null) {
-            mRowIdColumn = newCursor.getColumnIndexOrThrow("_id")
+            rowIdColumn = newCursor.getColumnIndexOrThrow("_id")
             // notify the observers about the new cursor
             notifyDataSetChanged()
         } else {
@@ -90,10 +90,7 @@ abstract class CursorRecyclerAdapter<VH : RecyclerView.ViewHolder>() : RecyclerV
     }
 
     fun updateFocusedItem(focusItem: Int) {
-        // notifyItemChanged throws NPE!
-        // notifyItemChanged(focusedItem)
         focusedItem = focusItem
         notifyDataSetChanged()
-        // notifyItemChanged(focusedItem)
     }
 }

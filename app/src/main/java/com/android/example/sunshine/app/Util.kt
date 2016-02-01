@@ -11,6 +11,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.preference.PreferenceManager
+import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentTransaction
 import android.support.v7.graphics.Palette
@@ -32,6 +33,11 @@ const val LOG_TAG = "SUNSHINE"
 
 fun Activity.start(type: KClass<*>): Boolean {
     startActivity(Intent(this, type.java))
+    return true
+}
+
+fun Fragment.start(type: KClass<*>): Boolean {
+    startActivity(Intent(context, type.java))
     return true
 }
 
@@ -113,10 +119,16 @@ fun Uri.contentId() = ContentUris.parseId(this)
 fun CompositeSubscription.subscribe(o: rx.Observable<Any>) = apply { add(o.subscribe()) }
 
 fun location(c: Context): String = PreferenceManager.getDefaultSharedPreferences(c).getString(
-        c.getString(R.string.pref_location_key), c.getString(R.string.pref_location_default))
+        c.getString(R.string.pref_location_key),
+        c.getString(R.string.pref_location_default))
 
 fun units(c: Context): String = PreferenceManager.getDefaultSharedPreferences(c).getString(
-        c.getString(R.string.pref_units_key), c.getString(R.string.pref_units_metric))
+        c.getString(R.string.pref_units_key),
+        c.getString(R.string.pref_units_default))
+
+fun notifications(c: Context) = PreferenceManager.getDefaultSharedPreferences(c).getBoolean(
+        c.getString(R.string.pref_notifications_key),
+        c.getString(R.string.pref_notifications_default).toBoolean())
 
 fun metric(c: Context): Boolean = units(c) == "metric"
 
@@ -131,9 +143,9 @@ fun normalizeDate(dateInMillis: Long = System.currentTimeMillis()) = GregorianCa
 
 val UTC by lazy { TimeZone.getTimeZone("UTC") }
 
-fun addLocation(context: Context, locationSetting: String, cityName: String, lat: Double, lon: Double): Long {
+fun addLocation(cr: ContentResolver, locationSetting: String, cityName: String, lat: Double, lon: Double): Long {
     // First, check if the location with this city name exists in the db
-    context.contentResolver.query(
+    cr.query(
             LocationEntry.CONTENT_URI,
             arrayOf(LocationEntry._ID),
             "${LocationEntry.COLUMN_LOCATION_SETTING} = ?",
@@ -145,7 +157,7 @@ fun addLocation(context: Context, locationSetting: String, cityName: String, lat
             return it.getLong(it.getColumnIndex(LocationEntry._ID))
         } else {
             // Otherwise, insert it using the content resolver and the base URI
-            return context.contentResolver.insert(LocationEntry.CONTENT_URI, ContentValues().apply {
+            return cr.insert(LocationEntry.CONTENT_URI, ContentValues().apply {
                 put(LocationEntry.COLUMN_LOCATION_SETTING, locationSetting)
                 put(LocationEntry.COLUMN_CITY_NAME, cityName)
                 put(LocationEntry.COLUMN_COORD_LAT, lat)
@@ -164,7 +176,7 @@ fun formatTemperature(context: Context, temperature: Double, units: String): Str
 
 fun formatHighLows(high: Double, low: Double) = "${Math.round(high)}/${Math.round(low)}"
 
-fun ContentValues.asForecast(units: String, dateFormat: Format = SimpleDateFormat("EEE MMM dd")): MainActivityFragment.Forecast {
+fun ContentValues.asForecast(unit: String, dateFormat: Format = SimpleDateFormat("EEE MMM dd")): MainActivityFragment.Forecast {
     var high = this.getAsDouble(WeatherContract.WeatherEntry.COLUMN_MAX_TEMP)
     var low = this.getAsDouble(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP)
 
@@ -172,10 +184,10 @@ fun ContentValues.asForecast(units: String, dateFormat: Format = SimpleDateForma
     val IM = "imperial";
     val ME = "metric"
 
-    if (units.equals(IM)) {
+    if (unit.equals(IM)) {
         high = (high * 1.8) + 32; low = (low * 1.8) + 32;
-    } else if (!units.equals(ME)) {
-        Log.d(LOG_TAG, "Unsupported unit type: " + units)
+    } else if (!unit.equals(ME)) {
+        Log.d(LOG_TAG, "Unsupported unit type: " + unit)
     }
 
     val day: String = dateFormat.format(this.getAsLong(WeatherContract.WeatherEntry.COLUMN_DATE))

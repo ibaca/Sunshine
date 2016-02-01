@@ -1,15 +1,14 @@
 package com.android.example.sunshine.app
 
 import android.content.ContentValues
+import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
-import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v4.app.Fragment
 import android.support.v4.app.LoaderManager
 import android.support.v4.content.CursorLoader
 import android.support.v4.content.Loader
-import android.support.v4.widget.SwipeRefreshLayout
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.util.Log
@@ -17,22 +16,20 @@ import android.view.*
 import android.widget.ImageView
 import android.widget.TextView
 import butterknife.bindView
-import com.android.example.sunshine.app.BuildConfig.OPENWEATHERMAP_APIKEY
+import com.android.example.sunshine.app.data.WeatherContract
 import com.android.example.sunshine.app.data.WeatherContract.WeatherEntry
 import com.android.example.sunshine.app.data.WeatherContract.WeatherEntry.buildWeatherLocationAndDate
 import com.android.example.sunshine.app.data.WeatherContract.WeatherEntry.buildWeatherLocationWithStartDate
+import com.android.example.sunshine.app.sync.SunshineSyncAdapter
 import com.squareup.picasso.Picasso
-import org.json.JSONObject
 import java.lang.System.currentTimeMillis
-import java.net.URL
 import java.text.SimpleDateFormat
-import java.util.*
 
 class MainActivityFragment : Fragment() {
-    var useTodayLayout = false
-    val list: RecyclerView by bindView(R.id.listview_forecast)
-    val swipe: SwipeRefreshLayout get() = view as SwipeRefreshLayout
+    val list: RecyclerView by lazy { view as RecyclerView }
     lateinit var loaderCallback: LoaderManager.LoaderCallbacks<Cursor>
+    var useTodayLayout = false
+    var forecastAdapter: ForecastAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,8 +40,8 @@ class MainActivityFragment : Fragment() {
         inflater.inflate(R.menu.menu_main_fragment, menu)
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        R.id.action_refresh -> fetch().let { true }
+    override fun onOptionsItemSelected(item: MenuItem?): Boolean = when (item?.itemId) {
+        R.id.action_map -> openPreferredLocationInMap().let { true }
         else -> super.onOptionsItemSelected(item)
     }
 
@@ -55,12 +52,8 @@ class MainActivityFragment : Fragment() {
     override fun onActivityCreated(state: Bundle?) {
         super.onActivityCreated(state)
 
-        val forecastAdapter = ForecastAdapter()
-        val swap: (Cursor?) -> Unit = { cursor -> forecastAdapter.swapCursor(cursor) }
-
-        swipe.apply {
-            setOnRefreshListener { fetch() }
-        }
+        forecastAdapter = ForecastAdapter()
+        val swap: (Cursor?) -> Unit = { cursor -> forecastAdapter?.swapCursor(cursor) }
 
         list.apply {
             setHasFixedSize(false)
@@ -86,13 +79,33 @@ class MainActivityFragment : Fragment() {
             buildWeatherLocationWithStartDate(location(), currentTimeMillis()),
             null, null, null, "${WeatherEntry.COLUMN_DATE} DESC")
 
-    fun fetch() = FetchWeatherTask({ done() }).execute(location()).let { null }
-
-    fun done() = swipe.apply { isRefreshing = false }
+    fun fetch() = SunshineSyncAdapter.syncImmediately(activity)
 
     fun location() = location(context)
 
     fun units() = units(context)
+
+    private fun openPreferredLocationInMap() {
+        // Using the URI scheme for showing a location found on a map.  This super-handy
+        // intent can is detailed in the "Common Intents" page of Android's developer site:
+        // http://developer.android.com/guide/components/intents-common.html#Maps
+        forecastAdapter?.apply {
+            cursor?.apply {
+                moveToPosition(0)
+                val values = asContentValues()
+                val posLat = values.getAsString(WeatherContract.LocationEntry.COLUMN_COORD_LAT)
+                val posLong = values.getAsString(WeatherContract.LocationEntry.COLUMN_COORD_LON)
+                val geoLocation = Uri.parse("geo:$posLat,$posLong")
+
+                val intent = Intent(Intent.ACTION_VIEW).setData(geoLocation)
+                if (intent.resolveActivity(activity.packageManager) != null) {
+                    startActivity(intent)
+                } else {
+                    Log.d(LOG_TAG, "Couldn't call " + geoLocation.toString() + ", no receiving apps installed!")
+                }
+            }
+        }
+    }
 
     data class Forecast(
             val location: String,
@@ -102,83 +115,6 @@ class MainActivityFragment : Fragment() {
             val min: Double,
             val max: Double
     )
-
-    inner class FetchWeatherTask(val onComplete: () -> Unit) : AsyncTask<String, Unit, Unit>() {
-        val apiKey = OPENWEATHERMAP_APIKEY
-        val base = "http://api.openweathermap.org/data/2.5/forecast/daily"
-        val days = 14
-
-        override fun doInBackground(vararg params: String): Unit = params[0].let { location ->
-            try {
-                URL(uri(location)).readText().let { process(location, it) }
-            } catch (e: Throwable) {
-                Log.e(LOG_TAG, "fetch and process location '$location' failure!, cause: $e", e)
-            }
-        }
-
-        override fun onPostExecute(result: Unit) = onComplete.invoke()
-
-        private fun uri(q: String) = "$base?q=$q&units=metric&cnt=$days&appid=$apiKey"
-
-        private fun process(locationSetting: String, forecastJsonStr: String): Unit {
-            val forecastJson = JSONObject(forecastJsonStr)
-            val forecastArray = forecastJson.getJSONArray("list")
-
-            val cityJson = forecastJson.getJSONObject("city")
-            val cityName = cityJson.getString("name")
-
-            val cityCoord = cityJson.getJSONObject("coord")
-            val cityLatitude = cityCoord.getDouble("lat")
-            val cityLongitude = cityCoord.getDouble("lon")
-
-            val locationId = addLocation(context, locationSetting, cityName, cityLatitude, cityLongitude)
-
-            val date = normalizeDate(); date.add(Calendar.DATE, -1)
-            val forecastVector = (0..forecastArray.length() - 1).map {
-                date.add(Calendar.DATE, 1)
-                val dayForecast = forecastArray.getJSONObject(it)
-
-                val pressure = dayForecast.getDouble("pressure")
-                val humidity = dayForecast.getInt("humidity")
-                val windSpeed = dayForecast.getDouble("speed")
-                val windDirection = dayForecast.getDouble("deg")
-
-                // description is in a child array called "weather", which is 1 element long.
-                val weatherArray = dayForecast.getJSONArray("weather").getJSONObject(0)
-                val description: String = weatherArray.getString("main")
-                val weatherId = weatherArray.getString("id")
-                val icon = weatherArray.getString("icon")
-
-                // Temperatures are in a child object called "temp".  Try not to name variables
-                // "temp" when working with temperature.  It confuses everybody.
-                val temperatureObject = dayForecast.getJSONObject("temp")
-                var high = temperatureObject.getDouble("max")
-                var low = temperatureObject.getDouble("min")
-
-                ContentValues().apply {
-                    Log.i(LOG_TAG, "inserting date ${date.time}")
-                    put(WeatherEntry.COLUMN_LOC_KEY, locationId)
-                    put(WeatherEntry.COLUMN_DATE, date.timeInMillis)
-                    put(WeatherEntry.COLUMN_HUMIDITY, humidity)
-                    put(WeatherEntry.COLUMN_PRESSURE, pressure)
-                    put(WeatherEntry.COLUMN_WIND_SPEED, windSpeed)
-                    put(WeatherEntry.COLUMN_DEGREES, windDirection)
-                    put(WeatherEntry.COLUMN_MAX_TEMP, high)
-                    put(WeatherEntry.COLUMN_MIN_TEMP, low)
-                    put(WeatherEntry.COLUMN_SHORT_DESC, description)
-                    put(WeatherEntry.COLUMN_WEATHER_ID, weatherId)
-                    put(WeatherEntry.COLUMN_ICON, icon)
-                }
-            }.toTypedArray()
-
-            // add to database
-            if (forecastVector.size > 0) {
-                context.contentResolver.bulkInsert(WeatherEntry.CONTENT_URI, forecastVector)
-            }
-
-            Log.d(LOG_TAG, "FetchWeatherTask Complete. " + forecastVector.size + " inserted")
-        }
-    }
 
     inner class ForecastAdapter() : CursorRecyclerAdapter<ForecastAdapter.ViewHolder>() {
         val inflater = LayoutInflater.from(context)

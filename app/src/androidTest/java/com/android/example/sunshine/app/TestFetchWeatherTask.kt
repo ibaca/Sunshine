@@ -13,7 +13,7 @@ class TestFetchWeatherTask : AndroidTestCase() {
                 LocationEntry.COLUMN_LOCATION_SETTING + " = ?",
                 arrayOf(ADD_LOCATION_SETTING))
 
-        val locationId = addLocation(context,
+        val locationId = addLocation(context.contentResolver,
                 ADD_LOCATION_SETTING, ADD_LOCATION_CITY, ADD_LOCATION_LAT, ADD_LOCATION_LON)
 
         // does addLocation return a valid record ID?
@@ -51,7 +51,7 @@ class TestFetchWeatherTask : AndroidTestCase() {
                     locationCursor.moveToNext())
 
             // add the location again
-            val newLocationId = addLocation(context,
+            val newLocationId = addLocation(context.contentResolver,
                     ADD_LOCATION_SETTING, ADD_LOCATION_CITY, ADD_LOCATION_LAT, ADD_LOCATION_LON)
 
             assertEquals("Error: inserting a location again should return the same ID",
